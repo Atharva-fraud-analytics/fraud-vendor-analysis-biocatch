@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioCatch SOC Terminal &amp; Interactive PPT Studio</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for High-Fidelity UI Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        soc: {
+                            950: '#030712', // Pure deep black/grey
+                            900: '#0b0f19', // Terminal background
+                            850: '#111827', // Card background
+                            800: '#1f2937', // Borders
+                            700: '#374151',
+                            accent: '#10b981', // BioCatch Green
+                            threat: '#ef4444', // Alert Threat Red
+                            info: '#06b6d4'    // Data Cyan
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth, premium visual transitions */
+        .slide-pane {
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.98);
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            inset: 0;
+        }
+        .slide-pane.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            z-index: 10;
+        }
+        /* Custom premium scrollbar styling */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #030712;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 9999px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+        /* Flow line animations for vector diagrams */
+        @keyframes flowDash {
+            to {
+                stroke-dashoffset: -40;
+            }
+        }
+        .flow-line-active {
+            stroke-dasharray: 6, 6;
+            animation: flowDash 1.5s linear infinite;
+        }
+        .glow-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glow-node:hover {
+            filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.45));
+        }
+        .glow-node-threat:hover {
+            filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.45));
+        }
+        .glow-node-info:hover {
+            filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.45));
+        }
+    </style>
+</head>
+<body class="bg-soc-950 font-sans text-slate-100 min-h-screen flex flex-col overflow-hidden select-none">
+
+    <!-- Global Threat Indicator Header Bar -->
+    <header class="h-14 border-b border-soc-800 bg-soc-900/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-30">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-950/40">
+                <i class="fa-solid fa-terminal animate-pulse"></i>
+            </div>
+            <div>
+                <span class="text-[9px] font-mono text-soc-accent font-bold tracking-widest uppercase">BioCatch SOC Workspace v2.0</span>
+                <h1 class="text-sm font-extrabold text-slate-100 -mt-1 flex items-center gap-2">
+                    Behavioral Biometrics Terminal
+                    <span class="text-[10px] bg-soc-850 border border-soc-800 text-slate-400 px-2 py-0.5 rounded font-mono font-normal">LOCK: COMPLIANT SOURCE ONLY</span>
+                </h1>
+            </div>
+        </div>
+        
+        <!-- Live Workspace Navigation Switcher (Tabs) -->
+        <div class="flex bg-soc-950 rounded-lg p-1 border border-soc-800">
+            <button onclick="setViewMode('document')" id="tab-doc" class="flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 bg-soc-850 text-soc-accent shadow border border-soc-800/60">
+                <i class="fa-regular fa-file-code"></i> Documents
+            </button>
+            <button onclick="setViewMode('diagrams')" id="tab-diag" class="flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-diagram-project"></i> Diagrams Studio
+            </button>
+            <button onclick="setViewMode('slides')" id="tab-slides" class="flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-play"></i> Present Slides (PPT)
+            </button>
+        </div>
+    </header>
+
+    <!-- Core Terminal Shell Layout -->
+    <div class="flex-grow flex overflow-hidden">
+        
+        <!-- Sidebar Navigation: Sequential Files Explorer -->
+        <aside class="w-80 bg-soc-900/60 border-r border-soc-800 flex flex-col justify-between shrink-0">
+            <div>
+                <!-- Directory Navigation Title -->
+                <div class="p-5 border-b border-soc-800 bg-soc-950/20">
+                    <span class="text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold block mb-1">WORKSPACE REPOSITORY</span>
+                    <span class="text-xs font-bold text-slate-300 font-mono flex items-center gap-2">
+                        <i class="fa-regular fa-folder-open text-amber-500 text-sm animate-bounce"></i> Notes /
+                    </span>
+                </div>
+
+                <!-- Structured File Tree matching exact specifications -->
+                <nav class="p-3 space-y-1.5" id="file-tree-container">
+                    <!-- File 1 -->
+                    <button onclick="selectFile(1)" id="file-btn-1" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 bg-soc-850 text-soc-accent border-l-2 border-soc-accent shadow-inner">
+                        <i class="fa-brands fa-markdown text-soc-accent text-sm"></i>
+                        <span class="truncate">Behavioral_Biometrics.md</span>
+                    </button>
+                    <!-- File 2 -->
+                    <button onclick="selectFile(2)" id="file-btn-2" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400">
+                        <i class="fa-brands fa-markdown text-soc-info text-sm"></i>
+                        <span class="truncate">Push_API.md</span>
+                    </button>
+                    <!-- File 3 -->
+                    <button onclick="selectFile(3)" id="file-btn-3" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400">
+                        <i class="fa-brands fa-markdown text-yellow-500 text-sm"></i>
+                        <span class="truncate">Rule_Engine.md</span>
+                    </button>
+                    <!-- File 4 -->
+                    <button onclick="selectFile(4)" id="file-btn-4" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400">
+                        <i class="fa-brands fa-markdown text-indigo-400 text-sm"></i>
+                        <span class="truncate">Mule_Detection.md</span>
+                    </button>
+                    <!-- File 5 -->
+                    <button onclick="selectFile(5)" id="file-btn-5" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400">
+                        <i class="fa-brands fa-markdown text-soc-threat text-sm"></i>
+                        <span class="truncate">Scam_Detection.md</span>
+                    </button>
+                    <!-- File 6 -->
+                    <button onclick="selectFile(6)" id="file-btn-6" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400">
+                        <i class="fa-brands fa-markdown text-teal-400 text-sm"></i>
+                        <span class="truncate">Analyst_Workflow.md</span>
+                    </button>
+                    <!-- File 7: Diagrams -->
+                    <button onclick="selectFile(7)" id="file-btn-7" class="file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400">
+                        <i class="fa-brands fa-markdown text-cyan-400 text-sm"></i>
+                        <span class="truncate">Architecture_Diagrams.md</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Terminal Core Info Footer -->
+            <div class="p-5 border-t border-soc-800 bg-soc-950/40 text-[10px] text-slate-500 font-mono space-y-2">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-soc-accent animate-pulse"></div>
+                    <span class="font-bold text-slate-400 tracking-wider">SYSTEM SECURE</span>
+                </div>
+                <div class="text-[9px] text-slate-500 space-y-1">
+                    <p>• Data Source: Uploaded Report Files</p>
+                    <p>• Output Match: Fully Verified</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Hand Workspace Area -->
+        <main class="flex-grow flex flex-col bg-soc-900 relative">
+            
+            <!-- VIEW MODE 1: DOCUMENT (MARKDOWN PREVIEWER) -->
+            <div id="view-document" class="absolute inset-0 flex flex-col bg-soc-900 overflow-y-auto p-10 custom-scroll">
+                <div class="max-w-3xl mx-auto w-full" id="document-markdown-render">
+                    <!-- Loaded dynamically in real-time -->
+                </div>
+            </div>
+
+            <!-- VIEW MODE 2: INTERACTIVE DIAGRAMS STUDIO -->
+            <div id="view-diagrams" class="absolute inset-0 hidden flex flex-col bg-soc-950/40 p-8 overflow-y-auto custom-scroll">
+                <div class="max-w-5xl mx-auto w-full flex flex-col h-full space-y-6">
+                    
+                    <!-- Diagram Tab Select Header -->
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-soc-800 pb-5">
+                        <div>
+                            <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-widest">ARCHITECTURE VISUALIZATION</span>
+                            <h2 class="text-xl font-extrabold text-slate-100 tracking-tight">Interactive Flowcharts &amp; Blueprints</h2>
+                        </div>
+                        <div class="flex bg-soc-950 rounded-lg p-1 border border-soc-800 overflow-x-auto self-stretch md:self-auto">
+                            <button onclick="renderSelectedDiagram('push')" id="diag-btn-push" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-emerald-600 text-white shadow shadow-emerald-900/40">
+                                <i class="fa-solid fa-paper-plane"></i> Push API Flow
+                            </button>
+                            <button onclick="renderSelectedDiagram('scam')" id="diag-btn-scam" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 text-slate-400 hover:text-slate-200">
+                                <i class="fa-solid fa-masks-theater"></i> Scam Workflow
+                            </button>
+                            <button onclick="renderSelectedDiagram('malware')" id="diag-btn-malware" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 text-slate-400 hover:text-slate-200">
+                                <i class="fa-solid fa-shield-virus"></i> Malware Workflow
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Flow Diagrams Sandbox Structure -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow items-stretch">
+                        
+                        <!-- Main Stage SVG Sandbox Layout -->
+                        <div class="lg:col-span-2 bg-soc-850 border border-soc-800 rounded-xl p-8 flex flex-col justify-between relative shadow-xl min-h-[440px]">
+                            <div class="absolute top-4 left-4 flex items-center gap-2 text-xs font-mono text-slate-400">
+                                <span class="w-2.5 h-2.5 rounded-full bg-soc-accent animate-ping"></span>
+                                <span id="diagram-status-indicator">Active Telemetry Simulation</span>
+                            </div>
+
+                            <!-- Mapped Dynamic SVG Mount Point -->
+                            <div class="flex-grow flex items-center justify-center py-6" id="diagram-svg-canvas">
+                                <!-- Dynamic Render -->
+                            </div>
+
+                            <!-- Bottom Stage Controls -->
+                            <div class="border-t border-soc-800/80 pt-4 mt-2 flex flex-col sm:flex-row justify-between items-center text-[11px] text-slate-450 gap-3">
+                                <span class="text-slate-400"><i class="fa-solid fa-info-circle text-soc-accent mr-1"></i> Tip: Click any stage box to inspect detailed variables inside the monitor.</span>
+                                <button onclick="restartDiagramLoop()" class="px-3 py-1.5 bg-soc-900 hover:bg-soc-800 text-slate-300 font-semibold rounded border border-soc-800 transition duration-150 flex items-center gap-2 whitespace-nowrap">
+                                    <i class="fa-solid fa-arrow-rotate-left text-[10px]"></i> Restart Flow Loop
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar Inspector Monitor -->
+                        <div class="bg-soc-850 border border-soc-800 rounded-xl p-6 flex flex-col justify-between shadow-xl">
+                            <div class="space-y-6">
+                                <div class="border-b border-soc-800 pb-4">
+                                    <span class="text-[9px] font-mono text-soc-accent uppercase tracking-widest block font-bold mb-1">STAGE INSPECTOR PORT</span>
+                                    <h3 class="text-base font-extrabold text-slate-100 flex items-center gap-2" id="inspector-port-title">
+                                        <i class="fa-solid fa-microchip"></i> No Stage Selected
+                                    </h3>
+                                </div>
+
+                                <div class="space-y-4">
+                                    <div>
+                                        <h4 class="text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1">Operational Role</h4>
+                                        <p class="text-xs text-slate-300 leading-relaxed" id="inspector-port-desc">
+                                            Highlight or select a specific flow node on the layout diagram to analyze active background rules, verification checks, and alert thresholds.
+                                        </p>
+                                    </div>
+                                    
+                                    <div class="p-3.5 bg-soc-950 border border-soc-800 rounded-lg font-mono">
+                                        <h4 class="text-[9px] font-bold text-soc-accent uppercase tracking-wider mb-1">Telemetry / Risk Context</h4>
+                                        <p class="text-xs text-slate-450 leading-relaxed" id="inspector-port-telemetry">Waiting for stage focus...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-soc-800 text-[9px] text-slate-500 font-mono flex items-center justify-between">
+                                <span>SOC CHANNEL: ACTIVE</span>
+                                <span>COMPLIANT-VERIFIED</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- VIEW MODE 3: PRESENTATION SLIDE DECK (PPT MODE) -->
+            <div id="view-slides" class="absolute inset-0 hidden flex flex-col justify-between p-8 md:p-12 select-none bg-soc-950/10">
+                
+                <!-- Slide Container Carousel Space -->
+                <div class="flex-grow relative overflow-hidden">
+                    
+                    <!-- ================= FILE 1 SLIDES: BEHAVIORAL BIOMETRICS ================= -->
+                    <!-- Slide 1: Welcome/Cover -->
+                    <div class="slide-pane active flex flex-col justify-center items-center text-center" data-file-idx="1">
+                        <span class="text-soc-accent font-mono text-[10px] tracking-widest uppercase mb-4 px-3 py-1 bg-emerald-950/60 border border-emerald-900 rounded-full font-bold">SLIDE 01 / 20</span>
+                        <h2 class="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight max-w-3xl">Behavioral Biometrics &amp; Fraud Prevention Suite</h2>
+                        <div class="w-16 h-1 bg-soc-accent rounded my-4"></div>
+                        <p class="text-slate-400 text-sm md:text-base max-w-xl">A complete sequential presentation detailing continuous user verification, the Rule Engine, and real-time Push API flows.</p>
+                        <p class="text-[10px] text-slate-500 font-mono mt-10 border border-soc-800 bg-soc-950/60 px-4 py-2 rounded-full"><i class="fa-regular fa-keyboard mr-2 text-soc-accent"></i>Use Keyboard Left / Right arrow keys or Spacebar to navigate</p>
+                    </div>
+
+                    <!-- Slide 2: What is Behavioral Biometrics -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="1">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 02 / 20 • BEHAVIORAL_BIOMETRICS.MD</span>
+                                <h3 class="text-2xl font-black text-white">What is Behavioral Biometrics?</h3>
+                            </div>
+                            <i class="fa-solid fa-fingerprint text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold text-xs uppercase tracking-widest">Definition</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    Behavioral biometrics identifies users based on how they interact with devices rather than physical characteristics.
+                                </p>
+                                <div class="bg-soc-950 border border-soc-800 p-4 rounded-lg">
+                                    <p class="text-[11px] text-slate-400 leading-relaxed font-mono">Unlike static methods (fingerprint scans or facial scans), behavioral telemetry measures micro-rhythms in continuous physical inputs.</p>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <h4 class="text-slate-400 font-semibold text-xs uppercase tracking-wider">Verified Interaction Indicators:</h4>
+                                <div class="grid grid-cols-2 gap-2.5 text-xs">
+                                    <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-2"><i class="fa-solid fa-keyboard text-soc-accent"></i> Typing speed</div>
+                                    <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-2"><i class="fa-solid fa-clock text-soc-accent"></i> Typing rhythm</div>
+                                    <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-2"><i class="fa-solid fa-mouse-pointer text-soc-accent"></i> Mouse movement</div>
+                                    <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-2"><i class="fa-solid fa-arrows-left-right text-soc-accent"></i> Swipe patterns</div>
+                                    <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-2"><i class="fa-solid fa-compress text-soc-accent"></i> Touch pressure</div>
+                                    <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-2"><i class="fa-solid fa-compass text-soc-accent"></i> Navigation behavior</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 3: Why It Is Used -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="1">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 03 / 20 • BEHAVIORAL_BIOMETRICS.MD</span>
+                                <h3 class="text-2xl font-black text-white">Why It Is Used</h3>
+                            </div>
+                            <i class="fa-solid fa-circle-exclamation text-soc-threat/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-threat font-bold text-xs uppercase tracking-widest">Static Security Gaps</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    Traditional static security checks can be stolen, phished, or bypassed entirely:
+                                </p>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="bg-red-950/40 border border-red-900/60 text-red-400 font-mono text-xs px-3 py-1.5 rounded-md">Passwords</span>
+                                    <span class="bg-red-950/40 border border-red-900/60 text-red-400 font-mono text-xs px-3 py-1.5 rounded-md">OTPs</span>
+                                    <span class="bg-red-950/40 border border-red-900/60 text-red-400 font-mono text-xs px-3 py-1.5 rounded-md">MFA</span>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold text-xs uppercase tracking-widest">Continuous Session Watch</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    Instead of a "single-gate" login validation, behavioral biometrics <strong>continuously monitors user activity</strong> throughout the entire session.
+                                </p>
+                                <p class="text-xs text-slate-500 leading-relaxed font-mono">This protects operations even if the intruder bypasses active MFA checks.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 4: Benefits -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="1">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 04 / 20 • BEHAVIORAL_BIOMETRICS.MD</span>
+                                <h3 class="text-2xl font-black text-white">The Core Benefits</h3>
+                            </div>
+                            <i class="fa-solid fa-shield text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-3">
+                                <h4 class="text-soc-accent font-bold text-[10px] uppercase tracking-widest">Continuous Protection</h4>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-3">
+                                    <i class="fa-solid fa-user-lock text-emerald-400 text-base"></i>
+                                    <div>
+                                        <b class="text-slate-200 block">Detects Account Takeover (ATO)</b>
+                                        <p class="text-slate-400 text-[10px]">Identifies session hijackers post-authorization.</p>
+                                    </div>
+                                </div>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-3">
+                                    <i class="fa-solid fa-desktop text-emerald-400 text-base"></i>
+                                    <div>
+                                        <b class="text-slate-200 block">Detects Remote Access Tools (RAT)</b>
+                                        <p class="text-slate-400 text-[10px]">Flags remote control system overlays and active tooling.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <h4 class="text-soc-accent font-bold text-[10px] uppercase tracking-widest">Intervention Optimization</h4>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-3">
+                                    <i class="fa-solid fa-robot text-emerald-400 text-base"></i>
+                                    <div>
+                                        <b class="text-slate-200 block">Detects Bots</b>
+                                        <p class="text-slate-400 text-[10px]">Blocks non-human input speed, scripts, and automation.</p>
+                                    </div>
+                                </div>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg flex items-center gap-3">
+                                    <i class="fa-solid fa-masks-theater text-emerald-400 text-base"></i>
+                                    <div>
+                                        <b class="text-slate-200 block">Detects Social Engineering Scams &amp; Reduces False Positives</b>
+                                        <p class="text-slate-400 text-[10px]">Identifies coercion behavior while keeping normal customer routes friction-free.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 5: BioCatch Example -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="1">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 05 / 20 • BEHAVIORAL_BIOMETRICS.MD</span>
+                                <h3 class="text-2xl font-black text-white">BioCatch Action Scenario</h3>
+                            </div>
+                            <i class="fa-solid fa-bezier-curve text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="space-y-6 text-xs">
+                            <p class="text-slate-400 text-sm">Real-time behavior escalation timeline sequence:</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="p-4 bg-soc-850 border border-soc-800 rounded-xl relative">
+                                    <span class="absolute top-4 right-4 text-[9px] bg-emerald-950 border border-emerald-900 text-emerald-400 font-mono px-2 py-0.5 rounded">STEP 01</span>
+                                    <h4 class="font-bold text-slate-200 mb-2">Login Success</h4>
+                                    <p class="text-slate-400 leading-relaxed">Customer successfully passes the static login wall.</p>
+                                </div>
+                                <div class="p-4 bg-soc-850 border border-amber-900/40 rounded-xl relative">
+                                    <span class="absolute top-4 right-4 text-[9px] bg-amber-950 border border-amber-900 text-amber-400 font-mono px-2 py-0.5 rounded">STEP 02</span>
+                                    <h4 class="font-bold text-slate-200 mb-2">Behavior Shift</h4>
+                                    <p class="text-slate-400 leading-relaxed">System notices long hesitation, unusual navigation patterns, and repeated corrections.</p>
+                                </div>
+                                <div class="p-4 bg-soc-850 border border-rose-900/40 rounded-xl relative">
+                                    <span class="absolute top-4 right-4 text-[9px] bg-rose-950 border border-rose-900 text-rose-400 font-mono px-2 py-0.5 rounded">STEP 03</span>
+                                    <h4 class="font-bold text-slate-200 mb-2">Alert Generation</h4>
+                                    <p class="text-slate-400 leading-relaxed">The internal risk score increases instantly and dispatches a fraud alert.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= FILE 2 SLIDES: PUSH API ================= -->
+                    <!-- Slide 6: What is Push API? -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="2">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 06 / 20 • PUSH_API.MD</span>
+                                <h3 class="text-2xl font-black text-white">What is the Push API?</h3>
+                            </div>
+                            <i class="fa-solid fa-paper-plane text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold text-xs uppercase tracking-widest">Real-time Mechanism</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    Push API is a <strong>real-time notification mechanism</strong> that cuts polling latency down to zero.
+                                </p>
+                            </div>
+                            <div class="bg-soc-950 border border-soc-800 p-5 rounded-xl space-y-2">
+                                <h4 class="text-slate-400 font-bold text-[10px] uppercase tracking-widest">The Paradigm Shift</h4>
+                                <p class="text-xs text-slate-300 leading-relaxed">
+                                    Instead of the bank requesting information (polling), <strong>BioCatch automatically sends fraud alerts</strong> when risk changes during a session.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 7: Push API Workflow -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="2">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 07 / 20 • PUSH_API.MD</span>
+                                <h3 class="text-2xl font-black text-white">Push API Workflow Pipeline</h3>
+                            </div>
+                            <i class="fa-solid fa-route text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="space-y-6 text-xs text-center">
+                            <p class="text-slate-400 font-mono uppercase tracking-widest">Real-time Alert Propagation Chain</p>
+                            <div class="flex flex-col md:flex-row gap-2 justify-between items-stretch">
+                                <div class="flex-1 bg-soc-850 p-3 rounded border border-soc-800 flex flex-col justify-center">Customer Activity</div>
+                                <div class="text-soc-accent flex items-center justify-center"><i class="fa-solid fa-angle-right hidden md:block"></i><i class="fa-solid fa-angle-down md:hidden"></i></div>
+                                <div class="flex-1 bg-soc-850 p-3 rounded border border-soc-800 flex flex-col justify-center">BioCatch SDK</div>
+                                <div class="text-soc-accent flex items-center justify-center"><i class="fa-solid fa-angle-right hidden md:block"></i><i class="fa-solid fa-angle-down md:hidden"></i></div>
+                                <div class="flex-1 bg-soc-850 p-3 rounded border border-soc-800 flex flex-col justify-center">Risk Engine</div>
+                                <div class="text-soc-accent flex items-center justify-center"><i class="fa-solid fa-angle-right hidden md:block"></i><i class="fa-solid fa-angle-down md:hidden"></i></div>
+                                <div class="flex-1 bg-soc-850 p-3 rounded border border-soc-800 flex flex-col justify-center">Rule Engine</div>
+                                <div class="text-soc-accent flex items-center justify-center"><i class="fa-solid fa-angle-right hidden md:block"></i><i class="fa-solid fa-angle-down md:hidden"></i></div>
+                                <div class="flex-1 bg-emerald-950 border border-emerald-850 p-3 rounded flex flex-col justify-center font-bold text-emerald-400">Push API</div>
+                                <div class="text-soc-accent flex items-center justify-center"><i class="fa-solid fa-angle-right hidden md:block"></i><i class="fa-solid fa-angle-down md:hidden"></i></div>
+                                <div class="flex-1 bg-soc-850 p-3 rounded border border-soc-800 flex flex-col justify-center">Bank Fraud Platform</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 8: Push API Scenario Example -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="2">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 08 / 20 • PUSH_API.MD</span>
+                                <h3 class="text-2xl font-black text-white">Push API Scenario Case</h3>
+                            </div>
+                            <i class="fa-solid fa-circle-exclamation text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-3">
+                                <h4 class="text-slate-400 font-bold uppercase tracking-widest">Normal Stage (01)</h4>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded flex justify-between items-center">
+                                    <span>Customer logs in normally</span>
+                                    <b class="text-emerald-400 font-mono">Risk Score = 150</b>
+                                </div>
+                                <h4 class="text-slate-450 font-bold uppercase tracking-widest">Escalation Stage (02)</h4>
+                                <div class="p-3 bg-soc-850 border border-rose-900/40 rounded flex justify-between items-center">
+                                    <span>New beneficiary added + RAT detected</span>
+                                    <b class="text-soc-threat font-mono">Risk Score = 950</b>
+                                </div>
+                            </div>
+                            <div class="bg-soc-950 p-6 rounded-xl border border-soc-800 flex flex-col justify-center space-y-3">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">Push Action</h4>
+                                <p class="text-slate-300 leading-relaxed">
+                                    The moment the risk state transitions, the <strong>Push API immediately dispatches the high-risk alert payload</strong> directly to the bank system.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 9: Push API Benefits -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="2">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 09 / 20 • PUSH_API.MD</span>
+                                <h3 class="text-2xl font-black text-white">Push API Benefits</h3>
+                            </div>
+                            <i class="fa-solid fa-circle-nodes text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block mb-1">Real-time fraud detection</b>
+                                <p class="text-slate-400">Threat propagation executes in milliseconds without waiting for batch requests.</p>
+                            </div>
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block mb-1">Faster analyst response</b>
+                                <p class="text-slate-400">SOC operators receive immediate, rich alert payloads containing behavior scores.</p>
+                            </div>
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block mb-1">Dynamic customer warnings</b>
+                                <p class="text-slate-400">Allows bank systems to inject step-up warnings or validation banners mid-session.</p>
+                            </div>
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block mb-1">Transaction protection</b>
+                                <p class="text-slate-400">Mitigates loss by blocking high-value transfers at the point of action.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= FILE 3 SLIDES: RULE ENGINE ================= -->
+                    <!-- Slide 10: What is a Rule Engine -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="3">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 10 / 20 • RULE_ENGINE.MD</span>
+                                <h3 class="text-2xl font-black text-white">What is a Rule Engine?</h3>
+                            </div>
+                            <i class="fa-solid fa-gears text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">Logic Division</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    The Rule Engine is responsible for evaluating active risk parameters and determining what operation strategy to deploy.
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-center">
+                                <div class="p-4 bg-soc-850 border border-soc-800 rounded flex flex-col justify-center">
+                                    <b class="text-slate-200">Risk Engine</b>
+                                    <span class="text-slate-450 block mt-1">Calculates risk indicators.</span>
+                                </div>
+                                <div class="p-4 bg-soc-850 border border-soc-800 rounded flex flex-col justify-center">
+                                    <b class="text-soc-accent">Rule Engine</b>
+                                    <span class="text-slate-450 block mt-1">Determines action strategy.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 11: Rule Engine Fields -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="3">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 11 / 20 • RULE_ENGINE.MD</span>
+                                <h3 class="text-2xl font-black text-white">Monitored Fields List</h3>
+                            </div>
+                            <i class="fa-solid fa-list-check text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs">
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1 mb-2">Customer</b>
+                                <p class="text-slate-400">Customer ID</p>
+                                <p class="text-slate-400">Account ID</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1 mb-2">Device</b>
+                                <p class="text-slate-400">Device ID</p>
+                                <p class="text-slate-400">Device Type</p>
+                                <p class="text-slate-400">New Device Indicator</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1 mb-2">Session</b>
+                                <p class="text-slate-400">Session ID</p>
+                                <p class="text-slate-400">Login Time</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1 mb-2">Behavior</b>
+                                <p class="text-slate-400">Risk Score</p>
+                                <p class="text-slate-400">Threat Indicators</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1 mb-2">Transaction</b>
+                                <p class="text-slate-400">Amount</p>
+                                <p class="text-slate-400">Beneficiary</p>
+                                <p class="text-slate-400">Transaction Type</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 12: Example Rule & Actions -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="3">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 12 / 20 • RULE_ENGINE.MD</span>
+                                <h3 class="text-2xl font-black text-white">Example Rule Logic &amp; Decisions</h3>
+                            </div>
+                            <i class="fa-solid fa-code text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-3">
+                                <h4 class="text-slate-400 font-bold uppercase tracking-widest">Example Rule</h4>
+                                <div class="p-4 bg-soc-950 border border-soc-800 rounded-lg font-mono">
+                                    <p class="text-slate-500"><b class="text-soc-accent">IF</b></p>
+                                    <p class="pl-4">Risk Score &gt; 850</p>
+                                    <p class="pl-4"><b class="text-slate-500">AND</b> New Device = YES</p>
+                                    <p class="pl-4"><b class="text-slate-500">AND</b> Transaction Amount &gt; 50,000</p>
+                                    <p class="text-slate-500"><b class="text-soc-accent">THEN</b></p>
+                                    <p class="pl-4 text-soc-threat font-bold">Create Alert</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <h4 class="text-slate-400 font-bold uppercase tracking-widest">Action Space Outputs</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="bg-soc-850 px-3 py-1.5 rounded border border-soc-800">Allow</span>
+                                    <span class="bg-soc-850 px-3 py-1.5 rounded border border-soc-800">OTP Challenge</span>
+                                    <span class="bg-soc-850 px-3 py-1.5 rounded border border-soc-800">Warning Message</span>
+                                    <span class="bg-rose-950/40 border border-rose-900/60 text-rose-400 px-3 py-1.5 rounded">Block Transaction</span>
+                                    <span class="bg-amber-950/40 border border-amber-900/60 text-amber-400 px-3 py-1.5 rounded">Create Fraud Case</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= FILE 4 SLIDES: MULE DETECTION ================= -->
+                    <!-- Slide 13: Money Mules -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="4">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 13 / 20 • MULE_DETECTION.MD</span>
+                                <h3 class="text-2xl font-black text-white">What is a Money Mule?</h3>
+                            </div>
+                            <i class="fa-solid fa-people-arrows text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">Definition</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    A money mule is a person who receives and transfers stolen money on behalf of fraudsters.
+                                </p>
+                                <div class="p-3.5 bg-soc-950 border border-soc-800 rounded-lg">
+                                    <p class="font-bold text-slate-300">Participation Roles:</p>
+                                    <p class="text-slate-400 mt-1">• Knowing or unknowing participants.</p>
+                                    <p class="text-slate-400">• Recruited through social media or fake job offers.</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <h4 class="text-slate-400 font-bold uppercase tracking-widest">Why Banks Care</h4>
+                                <p class="text-slate-300">Money mules directly enable crime rings by allowing them to:</p>
+                                <div class="space-y-1 bg-soc-950 p-3 rounded border border-soc-800">
+                                    <p class="text-slate-450">• Move stolen funds</p>
+                                    <p class="text-slate-450">• Launder money</p>
+                                    <p class="text-slate-450">• Hide criminal activity</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 14: Mule Indicators -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="4">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 14 / 20 • MULE_DETECTION.MD</span>
+                                <h3 class="text-2xl font-black text-white">Mule Indicators &amp; BioCatch Approach</h3>
+                            </div>
+                            <i class="fa-solid fa-shield text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-3">
+                                <h4 class="text-soc-threat font-bold uppercase tracking-widest">Common Indicators</h4>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded">
+                                    <b class="text-slate-200 block">Account Behavior:</b>
+                                    <p class="text-slate-400 text-[11px] mt-0.5">Sudden transaction volume increase, multiple incoming transfers, immediate outgoing transfers.</p>
+                                </div>
+                                <div class="p-3 bg-soc-850 border border-soc-800 rounded">
+                                    <b class="text-slate-200 block">Customer Behavior:</b>
+                                    <p class="text-slate-400 text-[11px] mt-0.5">New account receiving large funds, multiple linked accounts, unusual transaction patterns.</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">BioCatch Defense Paradigm</h4>
+                                <p class="text-slate-300">BioCatch performs continuous analysis targeting:</p>
+                                <div class="grid grid-cols-2 gap-2 text-center text-[11px] font-semibold">
+                                    <div class="p-2.5 bg-soc-950 border border-soc-800 rounded">Behavioral patterns</div>
+                                    <div class="p-2.5 bg-soc-950 border border-soc-800 rounded">Account relationships</div>
+                                    <div class="p-2.5 bg-soc-950 border border-soc-800 rounded">Session behavior</div>
+                                    <div class="p-2.5 bg-soc-950 border border-soc-800 rounded text-soc-accent">Cross-account links</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 15: Mule Workflow -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="4">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 15 / 20 • MULE_DETECTION.MD</span>
+                                <h3 class="text-2xl font-black text-white">Mule Investigation Workflow &amp; Goal</h3>
+                            </div>
+                            <i class="fa-solid fa-magnifying-glass text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="space-y-6 text-xs">
+                            <p class="text-slate-400 font-mono text-center uppercase tracking-widest">Sequential Investigation Stages</p>
+                            <div class="flex flex-col md:flex-row gap-2 justify-between text-center">
+                                <div class="flex-1 bg-soc-850 border border-soc-800 p-2.5 rounded">Alert Generated</div>
+                                <div class="flex-1 bg-soc-850 border border-soc-800 p-2.5 rounded">Review Account History</div>
+                                <div class="flex-1 bg-soc-850 border border-soc-800 p-2.5 rounded">Review Linked Accounts</div>
+                                <div class="flex-1 bg-soc-850 border border-soc-800 p-2.5 rounded">Review Transaction Flow</div>
+                                <div class="flex-1 bg-soc-850 border border-soc-800 p-2.5 rounded">Review Device History</div>
+                                <div class="flex-1 bg-emerald-950 border border-emerald-900 text-emerald-400 font-bold p-2.5 rounded">Fraud Decision</div>
+                            </div>
+                            <div class="bg-soc-950 border border-soc-800 p-4 rounded-lg">
+                                <b class="text-soc-accent block mb-1">Analyst Goal:</b>
+                                <p class="text-slate-300">Determine whether the account is being used to receive and move fraudulent funds.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= FILE 5 SLIDES: SCAM DETECTION ================= -->
+                    <!-- Slide 16: What is a Scam -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="5">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 16 / 20 • SCAM_DETECTION.MD</span>
+                                <h3 class="text-2xl font-black text-white">Scam Definition &amp; Challenge</h3>
+                            </div>
+                            <i class="fa-solid fa-masks-theater text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">Definition &amp; Core Types</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    A scam occurs when a victim is manipulated into willingly sending money to a fraudster.
+                                </p>
+                                <p class="text-slate-400">Scams include: investment, romance, impersonation, tech support, and government impersonation scams.</p>
+                            </div>
+                            <div class="space-y-3">
+                                <h4 class="text-soc-threat font-bold uppercase tracking-widest">The Detection Challenge</h4>
+                                <p class="text-slate-350">Because the customer initiates the payment, traditional fraud systems see correct security parameters:</p>
+                                <div class="p-3 bg-soc-950 border border-soc-800 rounded space-y-1 text-slate-400">
+                                    <p>• Correct password</p>
+                                    <p>• Correct OTP</p>
+                                    <p>• Correct device</p>
+                                </div>
+                                <p class="text-soc-threat font-bold">The transaction appears entirely legitimate.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 17: Scam Indicators & Workflow -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="5">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 17 / 20 • SCAM_DETECTION.MD</span>
+                                <h3 class="text-2xl font-black text-white">Scam Indicators &amp; Workflow</h3>
+                            </div>
+                            <i class="fa-solid fa-eye text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-3">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">Anomalous Scam Indicators</h4>
+                                <div class="grid grid-cols-1 gap-1">
+                                    <div class="p-2 bg-soc-950 rounded border border-soc-800">• Long hesitation / Repeated corrections</div>
+                                    <div class="p-2 bg-soc-950 rounded border border-soc-800">• Abnormal navigation / Copy-paste activity</div>
+                                    <div class="p-2 bg-soc-950 rounded border border-soc-800">• Active phone call during payment</div>
+                                    <div class="p-2 bg-soc-950 rounded border border-soc-800">• Signs of customer confusion</div>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <h4 class="text-slate-400 font-bold uppercase tracking-widest">Example Scam Workflow</h4>
+                                <div class="p-3 bg-soc-950 border border-soc-800 rounded font-mono text-slate-400">
+                                    Customer Login ➔ New Beneficiary Added ➔ Large Transfer Initiated ➔ Indicators Detected ➔ Risk Score Increased ➔ <span class="text-rose-400 font-bold">Push Alert Generated</span>
+                                </div>
+                                <div class="bg-emerald-950 border border-emerald-900 p-3 rounded text-emerald-400">
+                                    <b>Goal:</b> Identify signs that the customer is acting under manipulation or coercion.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= FILE 6 SLIDES: ANALYST WORKFLOW ================= -->
+                    <!-- Slide 18: Analyst Workflow -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="6">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 18 / 20 • ANALYST_WORKFLOW.MD</span>
+                                <h3 class="text-2xl font-black text-white">The Fraud Analyst Role</h3>
+                            </div>
+                            <i class="fa-solid fa-user-gear text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
+                            <div class="space-y-4">
+                                <h4 class="text-soc-accent font-bold uppercase tracking-widest">Responsibilities</h4>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    A Fraud Analyst investigates suspicious activity and makes fraud decisions.
+                                </p>
+                            </div>
+                            <div class="space-y-2">
+                                <h4 class="text-slate-400 font-bold uppercase tracking-widest">Investigation Process Flow</h4>
+                                <div class="p-3 bg-soc-950 border border-soc-800 rounded font-mono text-slate-400">
+                                    Alert Received ➔ Open Case ➔ Review Customer Info ➔ Review Device Info ➔ Review Session Activity ➔ Review Transaction Details ➔ Review Risk Indicators ➔ <span class="text-soc-accent font-bold">Decision</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 19: Investigation Key Areas -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="6">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 19 / 20 • ANALYST_WORKFLOW.MD</span>
+                                <h3 class="text-2xl font-black text-white">Key Investigation Areas</h3>
+                            </div>
+                            <i class="fa-solid fa-clipboard-list text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Customer</b>
+                                <p class="text-slate-450">• Account Age</p>
+                                <p class="text-slate-450">• Previous Fraud History</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Device</b>
+                                <p class="text-slate-450">• New Device / Changes</p>
+                                <p class="text-slate-450">• Device Reputation</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Session</b>
+                                <p class="text-slate-450">• Login Activity</p>
+                                <p class="text-slate-450">• Behavioral Indicators</p>
+                                <p class="text-slate-450">• Session Duration</p>
+                            </div>
+                            <div class="p-3 bg-soc-850 border border-soc-800 rounded-lg space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Transaction</b>
+                                <p class="text-slate-450">• Amount</p>
+                                <p class="text-slate-450">• Beneficiary</p>
+                                <p class="text-slate-450">• Transaction Pattern</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 20: Decisions, Tools & Skills -->
+                    <div class="slide-pane flex flex-col justify-center" data-file-idx="6">
+                        <div class="border-b border-soc-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] font-mono text-soc-accent font-bold uppercase tracking-wider">SLIDE 20 / 20 • ANALYST_WORKFLOW.MD</span>
+                                <h3 class="text-2xl font-black text-white">Terminal Operations Dashboard</h3>
+                            </div>
+                            <i class="fa-solid fa-briefcase text-soc-accent/20 text-3xl"></i>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]">
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-xl space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Possible Decisions:</b>
+                                <p class="text-slate-450">• Approve Activity / Escalate</p>
+                                <p class="text-slate-450">• Request Additional Verification</p>
+                                <p class="text-slate-450">• Block Transaction / Close Case</p>
+                            </div>
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-xl space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Tools Used:</b>
+                                <p class="text-slate-450">• BioCatch / Rule Engines</p>
+                                <p class="text-slate-450">• Case Management / SQL</p>
+                                <p class="text-slate-450">• Power BI / Fraud Dashboards</p>
+                            </div>
+                            <div class="p-4 bg-soc-850 border border-soc-800 rounded-xl space-y-2">
+                                <b class="text-slate-200 block border-b border-soc-800 pb-1">Skills &amp; Goal:</b>
+                                <p class="text-slate-450">• Data Analysis &amp; Investigation</p>
+                                <p class="text-slate-450">• Risk Assessment &amp; Critical Thinking</p>
+                                <p class="text-slate-400 font-semibold mt-1">Goal: Protect users while minimizing false positives.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Slide Control Actions Footer -->
+                <footer class="h-16 border-t border-soc-800 flex items-center justify-between mt-6 shrink-0 z-20">
+                    <button onclick="navigateSlide(-1)" id="slide-prev-btn" class="flex items-center gap-2 px-4 py-2 bg-soc-850 hover:bg-soc-800 text-slate-300 rounded-lg text-xs font-semibold transition duration-150 disabled:opacity-45 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-arrow-left"></i> Previous Slide
+                    </button>
+                    
+                    <div class="flex items-center gap-1.5" id="carousel-indicator-dots">
+                        <!-- Dynamic rendering -->
+                    </div>
+
+                    <button onclick="navigateSlide(1)" id="slide-next-btn" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition duration-150 disabled:opacity-45 disabled:cursor-not-allowed">
+                        Next Slide <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </footer>
+
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Workspace Operating Script -->
+    <script>
+        // Raw Markdown File Database Verbatim Mapped from Uploaded Files (Strict compliance check)
+        const notesFiles = {
+            1: {
+                title: "Behavioral_Biometrics.md",
+                icon: "fa-fingerprint text-soc-accent",
+                text: `# Behavioral Biometrics
+
+### What is Behavioral Biometrics?
+Behavioral biometrics identifies users based on how they interact with devices rather than physical characteristics.
+
+**Examples:**
+* Typing speed
+* Typing rhythm
+* Mouse movement
+* Swipe patterns
+* Touch pressure
+* Navigation behavior
+
+---
+
+### Why It Is Used
+Traditional security checks (Passwords, OTPs, MFA) can be stolen or bypassed.
+Behavioral biometrics continuously monitors user activity throughout a session.
+
+---
+
+### Core Security Benefits
+* **ATO Protection:** Detects Account Takeover (ATO)
+* **RAT Blockade:** Detects Remote Access Tools (RAT)
+* **Automation Block:** Detects Bots
+* **Scam Defense:** Detects Social Engineering Scams
+* **Friction Optimization:** Reduces False Positives
+
+---
+
+### BioCatch Example Case
+1.  Customer logs in successfully.
+2.  Behavior suddenly changes:
+    * *Long hesitation*
+    * *Unusual navigation*
+    * *Repeated corrections*
+3.  Risk score increases and fraud alert is generated.`
+            },
+            2: {
+                title: "Push_API.md",
+                icon: "fa-paper-plane text-soc-info",
+                text: `# Push API
+
+### What is Push API?
+Push API is a real-time notification mechanism.
+Instead of the bank requesting information, BioCatch automatically sends fraud alerts when risk changes during a session.
+
+---
+
+### Pipeline Workflow
+\`\`\`text
+Customer Activity ➔ BioCatch SDK ➔ Risk Engine ➔ Rule Engine ➔ Push API ➔ Bank Fraud Platform
+\`\`\`
+
+---
+
+### Real-Time Escalation Example Scenario
+* **Baseline Status:** Customer logs in normally.
+    * *Risk Score = 150*
+* **Post-Login Escalation (Later):**
+    * New beneficiary added
+    * Remote access detected
+    * *Risk Score = 950*
+* **API Action:** Push API immediately sends an alert to the bank.
+
+---
+
+### Core Delivery Benefits
+* Real-time fraud detection
+* Faster analyst response
+* Dynamic customer warnings
+* Transaction protection`
+            },
+            3: {
+                title: "Rule_Engine.md",
+                icon: "fa-gears text-yellow-500",
+                text: `# Rule Engine
+
+### What is a Rule Engine?
+A Rule Engine evaluates risk conditions and decides what action should be taken.
+* **Risk Engine:** Calculates risk metrics.
+* **Rule Engine:** Determines action plans.
+
+---
+
+### Mapped Decision Fields
+* **Customer:** Customer ID, Account ID
+* **Device:** Device ID, Device Type, New Device Indicator
+* **Session:** Session ID, Login Time
+* **Behavior:** Risk Score, Threat Indicators
+* **Transaction:** Amount, Beneficiary, Transaction Type
+
+---
+
+### Example Rule Formulation
+\`\`\`text
+IF
+    Risk Score > 850
+AND
+    New Device = YES
+AND
+    Transaction Amount > 50,000
+THEN
+    Create Alert
+\`\`\`
+
+---
+
+### Mapped Decision Actions
+* Allow
+* OTP Challenge
+* Warning Message
+* Block Transaction
+* Create Fraud Case`
+            },
+            4: {
+                title: "Mule_Detection.md",
+                icon: "fa-people-arrows text-indigo-400",
+                text: `# Money Mule Detection
+
+### What is a Money Mule?
+A money mule is a person who receives and transfers stolen money on behalf of fraudsters.
+* Knowing participants
+* Unknowing participants
+* Recruited through social media
+* Recruited through fake job offers
+
+---
+
+### Why Banks Care
+Money mules help criminals:
+1.  Move stolen funds
+2.  Launder money
+3.  Hide criminal activity
+
+---
+
+### Mapped Mule Indicators
+* **Account Behavior:**
+    * Sudden increase in transaction volume
+    * Multiple incoming transfers
+    * Immediate outgoing transfers
+* **Customer Behavior:**
+    * New account receiving large funds
+    * Multiple linked accounts
+    * Unusual transaction patterns
+
+---
+
+### BioCatch Verification Vectors
+BioCatch analyzes:
+* Behavioral patterns
+* Account relationships
+* Session behavior
+* Cross-account connections
+
+---
+
+### Investigation Workflow
+\`\`\`text
+Alert Generated ➔ Review Account History ➔ Review Linked Accounts ➔ Review Transaction Flow ➔ Review Device History ➔ Fraud Decision
+\`\`\`
+
+**Analyst Objective:** Determine whether the account is being used to receive and move fraudulent funds.`
+            },
+            5: {
+                title: "Scam_Detection.md",
+                icon: "fa-masks-theater text-soc-threat",
+                text: `# Scam Detection
+
+### What is a Scam?
+A scam occurs when a victim is manipulated into willingly sending money to a fraudster.
+* **Common Scams:** Investment scams, Romance scams, Impersonation scams, Tech support scams, Government impersonation scams.
+
+---
+
+### The Verification Challenge
+The customer authorizes the transaction themselves.
+Traditional fraud systems often see correct:
+* Password
+* OTP
+* Device
+**Result:** The transaction appears legitimate.
+
+---
+
+### Mapped Behavioral Indicators
+BioCatch looks for coercion signals:
+* Long hesitation
+* Repeated corrections
+* Abnormal navigation
+* Copy-paste activity
+* Active phone call during payment
+* Signs of customer confusion
+
+---
+
+### Scenario Pipeline
+\`\`\`text
+Customer Login ➔ New Beneficiary Added ➔ Large Transfer Initiated ➔ Behavioral Indicators Detected ➔ Risk Score Increased ➔ Push Alert Generated
+\`\`\`
+
+**Analyst Objective:** Review **Session Replay**, **Risk Indicators**, **Customer Journey**, and **Payment Activity** to identify signs that the customer is acting under manipulation or coercion.`
+            },
+            6: {
+                title: "Analyst_Workflow.md",
+                icon: "fa-user-gear text-teal-400",
+                text: `# Fraud Analyst Workflow
+
+### Responsibilities
+A Fraud Analyst investigates suspicious activity and makes fraud decisions.
+
+---
+
+### Investigation Stages Sequence
+\`\`\`text
+Alert Received ➔ Open Fraud Case ➔ Review Customer Info ➔ Review Device Info ➔ Review Session Activity ➔ Review Transaction Details ➔ Review Risk Indicators ➔ Decision
+\`\`\`
+
+---
+
+### Key Focus Areas
+* **Customer:** Account Age, Previous Fraud History
+* **Device:** New Device, Device Changes, Device Reputation
+* **Session:** Login Activity, Behavioral Indicators, Session Duration
+* **Transaction:** Amount, Beneficiary, Transaction Pattern
+
+---
+
+### Operational Decisions Space
+* Approve Activity
+* Escalate Investigation
+* Request Additional Verification
+* Block Transaction
+* Close Case
+
+---
+
+### Required Stack
+* **Tools:** BioCatch, Rule Engines, Case Management Systems, SQL, Power BI, Fraud Dashboards.
+* **Skills:** Fraud Investigation, Data Analysis, SQL, Risk Assessment, Communication, Critical Thinking.
+
+**Core Mission:** Protect customers and financial institutions while minimizing false positives.`
+            },
+            7: {
+                title: "Architecture_Diagrams.md",
+                icon: "fa-diagram-project text-cyan-400",
+                text: `# Architecture Diagrams & Pipeline Workflows
+
+Visual pipelines mapped directly from metrics. Switch to the **Diagrams Studio** mode at the top right to explore these as animated vector schemas.
+
+---
+
+### 1. Push API Flow
+\`\`\`text
+Customer ➔ BioCatch SDK ➔ Risk Engine ➔ Rule Engine ➔ Push API ➔ Bank Fraud Platform ➔ Fraud Analyst
+\`\`\`
+
+---
+
+### 2. Scam Detection Workflow
+\`\`\`text
+Customer ➔ Phone Call Active ➔ Typing Hesitation ➔ Repeated Corrections ➔ Risk Score Increase ➔ Push Alert ➔ Warning Message
+\`\`\`
+
+---
+
+### 3. Malware Detection Workflow
+\`\`\`text
+Remote Access Tool ➔ Behavioral Signals ➔ Risk Engine ➔ Alert ➔ Case Creation
+\`\`\`
+`
+            }
+        };
+
+        // Complete Vector Flow Configurations for SVG Generation
+        const diagramFlows = {
+            push: {
+                title: "Push API Flow Architecture",
+                accent: "text-soc-accent",
+                activeStroke: "stroke-emerald-400",
+                activeFill: "fill-emerald-950/20 stroke-emerald-400",
+                activeCircle: "fill-emerald-900/40 stroke-emerald-500",
+                nodeText: "fill-emerald-400 font-bold",
+                arrowId: "arrow-push",
+                arrowColor: "#10b981",
+                nodes: [
+                    { label: "Customer", desc: "User initiates interaction and provides physical typing/cursor telemetry.", details: "Monitored Inputs: Typing Speed, Rhythm, Mouse curve." },
+                    { label: "BioCatch SDK", desc: "Background script captures telemetry inputs without causing customer friction.", details: "Processing Model: Constant sampling rate." },
+                    { label: "Risk Engine", desc: "Calculates behavioral scores versus historical profile baselines.", details: "Metric output: Multi-variant confidence index." },
+                    { label: "Rule Engine", desc: "Evaluates risk conditions to decide active mitigation pathways.", details: "Fields Checked: Customer, Device, Session, Behavior, Transaction." },
+                    { label: "Push API", desc: "Automatically pushes a webhook payload the moment score changes.", details: "Payload type: Low-latency JSON push." },
+                    { label: "Bank Fraud Platform", desc: "Receives immediate alert data to trigger in-session warning or block.", details: "Operational speed: Near zero latency." },
+                    { label: "Fraud Analyst", desc: "Investigates flagged activity logs to make final fraud operational decision.", details: "Decisions: Approve, Escalate, Block, Close Case." }
+                ]
+            },
+            scam: {
+                title: "Scam Detection Workflow Sequence",
+                accent: "text-soc-threat",
+                activeStroke: "stroke-rose-500",
+                activeFill: "fill-rose-950/20 stroke-rose-500",
+                activeCircle: "fill-rose-900/40 stroke-rose-500",
+                nodeText: "fill-rose-400 font-bold",
+                arrowId: "arrow-scam",
+                arrowColor: "#ef4444",
+                nodes: [
+                    { label: "Customer", desc: "Victim is logging in normally but is acting under active coercion.", details: "Authentication state: Correct credentials and device." },
+                    { label: "Phone Call Active", desc: "BioCatch identifies continuous indicators of an active call.", details: "Coercion Risk: Highly elevated." },
+                    { label: "Typing Hesitation", desc: "Victim demonstrates long pauses during crucial typing fields.", details: "Telemetry profile: Hesitation metrics > baseline." },
+                    { label: "Repeated Corrections", desc: "Victim repeatedly backspaces and rewrites transaction inputs.", details: "Interaction anomalies: High deletion count." },
+                    { label: "Risk Score Increase", desc: "Evaluated coercion indicators cause a risk index spike.", details: "Current status: High severity risk triggered." },
+                    { label: "Push Alert", desc: "Outbound alert is dispatched to bank platform instantly.", details: "Delivery route: Direct API push." },
+                    { label: "Warning Message", desc: "In-app banner warning message is shown to prompt the user.", details: "Action: Dynamic friction alert." }
+                ]
+            },
+            malware: {
+                title: "Malware Detection Workflow Sequence",
+                accent: "text-soc-info",
+                activeStroke: "stroke-cyan-400",
+                activeFill: "fill-cyan-950/20 stroke-cyan-400",
+                activeCircle: "fill-cyan-900/40 stroke-cyan-500",
+                nodeText: "fill-cyan-400 font-bold",
+                arrowId: "arrow-malware",
+                arrowColor: "#06b6d4",
+                nodes: [
+                    { label: "Remote Access Tool", desc: "Intruder launches RAT / remote session to gain desktop interface overlay control.", details: "Threat classification: Overlay/Remote hijack." },
+                    { label: "Behavioral Signals", desc: "System detects non-human cursor jumps or injection actions.", details: "Indicators: RAT indicators flag active." },
+                    { label: "Risk Engine", desc: "Engine processes remote indicators, elevating threat level instantly.", details: "Risk Score threshold: Spikes to maximum limit boundaries." },
+                    { label: "Alert", desc: "Outbound API push alert dispatches details to host gateway firewall.", details: "Alert severity: Critical." },
+                    { label: "Case Creation", desc: "Transaction locked; alert routed to High Priority SOC Queue.", details: "Operation: Queue open case for forensic inspection." }
+                ]
+            }
+        };
+
+        let activeViewMode = 'document'; // 'document', 'diagrams', 'slides'
+        let activeFileId = 1;
+        let activeSlideIdx = 0;
+        let activeDiagramKey = 'push';
+        let activeDiagramNodeIdx = 0;
+        let diagramAnimationLoop = null;
+
+        // Document Tab Markdown Parsing and Rendering (Verbatim compliance)
+        function renderDocumentContent(fileId) {
+            const currentFile = notesFiles[fileId];
+            const renderNode = document.getElementById('document-markdown-render');
+            
+            // Premium markdown renderer using custom visual blocks
+            let formattedHtml = currentFile.text
+                .replace(/^# (.*$)/gim, '<h2 class="text-2xl font-extrabold text-white mb-6 border-b border-soc-800 pb-3 flex items-center gap-3"><i class="fa-solid fa-file-code text-slate-500 text-base"></i> $1</h2>')
+                .replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold text-soc-accent uppercase tracking-wider mt-6 mb-2">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h3 class="text-lg font-bold text-slate-200 mt-6 mb-3 border-b border-soc-800 pb-1.5">$1</h3>')
+                .replace(/^\* (.*$)/gim, '<li class="text-xs text-slate-300 ml-4 list-disc mb-1.5">$1</li>')
+                .replace(/^\-   (.*$)/gim, '<li class="text-xs text-slate-300 ml-4 list-disc mb-1.5">$1</li>')
+                .replace(/^1\.  (.*$)/gim, '<li class="text-xs text-slate-300 ml-4 list-decimal mb-1.5">$1</li>')
+                .replace(/^2\.  (.*$)/gim, '<li class="text-xs text-slate-300 ml-4 list-decimal mb-1.5">$1</li>')
+                .replace(/^3\.  (.*$)/gim, '<li class="text-xs text-slate-300 ml-4 list-decimal mb-1.5">$1</li>')
+                .replace(/^\*\*([^*]+)\*\*/g, '<strong class="text-slate-100">$1</strong>')
+                .replace(/^\*([^*]+)\*/g, '<em class="text-slate-400 italic">$1</em>')
+                .replace(/`([^`]+)`/g, '<code class="bg-soc-950 text-soc-accent px-1.5 py-0.5 rounded text-[11px] font-mono">$1</code>')
+                .replace(/```text\n([\s\S]*?)```/g, '<div class="bg-soc-950 p-4 border border-soc-800 rounded-lg text-xs font-mono text-slate-350 overflow-x-auto my-4 whitespace-pre-wrap leading-relaxed">$1</div>')
+                .replace(/---/g, '<hr class="border-soc-800 my-6">');
+
+            renderNode.innerHTML = `
+                <div class="mb-4 flex items-center justify-between text-xs text-slate-500 font-mono">
+                    <span>DIR: Notes / ${currentFile.title}</span>
+                    <span>FORMAT: Markdown Preview</span>
+                </div>
+                <div class="prose prose-invert max-w-none">
+                    ${formattedHtml}
+                </div>
+            `;
+        }
+
+        // Selected View Changer Controller
+        function setViewMode(mode) {
+            activeViewMode = mode;
+            
+            const docPanel = document.getElementById('view-document');
+            const diagramsPanel = document.getElementById('view-diagrams');
+            const slidesPanel = document.getElementById('view-slides');
+            
+            const docTab = document.getElementById('tab-doc');
+            const diagramsTab = document.getElementById('tab-diag');
+            const slidesTab = document.getElementById('tab-slides');
+
+            docPanel.classList.add('hidden');
+            diagramsPanel.classList.add('hidden');
+            slidesPanel.classList.add('hidden');
+            
+            docTab.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200";
+            diagramsTab.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200";
+            slidesTab.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200";
+
+            if (mode === 'document') {
+                docPanel.classList.remove('hidden');
+                docTab.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 bg-soc-850 text-soc-accent shadow border border-soc-800/60";
+            } else if (mode === 'diagrams') {
+                diagramsPanel.classList.remove('hidden');
+                diagramsTab.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 bg-soc-850 text-soc-accent shadow border border-soc-800/60";
+                renderSelectedDiagram(activeDiagramKey);
+            } else {
+                slidesPanel.classList.remove('hidden');
+                slidesTab.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 bg-soc-850 text-soc-accent shadow border border-soc-800/60";
+                syncSlideToCurrentFile();
+            }
+        }
+
+        // Active File Explorer selection
+        function selectFile(id) {
+            activeFileId = id;
+            
+            document.querySelectorAll('.file-btn').forEach((btn, idx) => {
+                if ((idx + 1) === id) {
+                    btn.className = "file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 bg-soc-850 text-soc-accent border-l-2 border-soc-accent shadow-inner font-bold";
+                } else {
+                    btn.className = "file-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left text-xs font-mono font-medium transition-all duration-150 hover:bg-soc-850/40 text-slate-400";
+                }
+            });
+
+            renderDocumentContent(id);
+
+            if (activeViewMode === 'slides') {
+                syncSlideToCurrentFile();
+            } else if (activeViewMode === 'diagrams' && id === 7) {
+                renderSelectedDiagram('push');
+            }
+        }
+
+        // Interactive Diagrams SVG Engine (Self-contained vector generators)
+        function renderSelectedDiagram(key) {
+            activeDiagramKey = key;
+            clearInterval(diagramAnimationLoop);
+            
+            const pushBtn = document.getElementById('diag-btn-push');
+            const scamBtn = document.getElementById('diag-btn-scam');
+            const malwareBtn = document.getElementById('diag-btn-malware');
+
+            pushBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 text-slate-400 hover:text-slate-200";
+            scamBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 text-slate-400 hover:text-slate-200";
+            malwareBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 text-slate-400 hover:text-slate-200";
+
+            if (key === 'push') pushBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-emerald-600 text-white shadow shadow-emerald-900/40";
+            if (key === 'scam') scamBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-rose-600 text-white shadow shadow-rose-900/40";
+            if (key === 'malware') malwareBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200 bg-cyan-600 text-white shadow shadow-cyan-900/40";
+
+            generateFlowChartSVG(key);
+
+            // Select initial node
+            selectDiagramNode(0);
+            
+            // Slide animation timeline loop
+            activeDiagramNodeIdx = 0;
+            diagramAnimationLoop = setInterval(() => {
+                activeDiagramNodeIdx = (activeDiagramNodeIdx + 1) % diagramFlows[key].nodes.length;
+                selectDiagramNode(activeDiagramNodeIdx);
+            }, 3200);
+        }
+
+        function generateFlowChartSVG(key) {
+            const flow = diagramFlows[key];
+            const canvas = document.getElementById('diagram-svg-canvas');
+            const count = flow.nodes.length;
+            
+            // Fluid responsive layout using precise coordinate paths
+            let svg = `<svg class="w-full max-w-sm md:max-w-md h-auto" viewBox="0 0 500 ${count * 75}" xmlns="http://www.w3.org/2000/svg">`;
+            
+            // Definition paths for arrows
+            svg += `
+                <defs>
+                    <marker id="${flow.arrowId}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="${flow.arrowColor}" />
+                    </marker>
+                </defs>
+            `;
+
+            // Connection Lines
+            flow.nodes.forEach((_, idx) => {
+                if (idx < count - 1) {
+                    const y1 = 35 + (idx * 75);
+                    const y2 = 75 + (idx * 75);
+                    svg += `
+                        <line id="conn-line-${idx}" x1="250" y1="${y1}" x2="250" y2="${y2}" 
+                              class="stroke-soc-800 stroke-[2px]" />
+                        <line id="conn-line-active-${idx}" x1="250" y1="${y1}" x2="250" y2="${y2}" 
+                              class="hidden ${flow.activeStroke} stroke-[2px]" marker-end="url(#${flow.arrowId})" />
+                    `;
+                }
+            });
+
+            // Node Cards
+            flow.nodes.forEach((node, idx) => {
+                const y = 10 + (idx * 75);
+                svg += `
+                    <g id="flow-node-g-${idx}" onclick="selectDiagramNode(${idx}, true)" class="cursor-pointer glow-node">
+                        <!-- Node Box Card -->
+                        <rect x="110" y="${y}" width="280" height="42" rx="6" 
+                              class="fill-soc-900 stroke-soc-800 stroke-[1.5px] transition-all duration-300" id="box-card-rect-${idx}" />
+                        
+                        <!-- Mini Counter Indicator Bubble -->
+                        <circle cx="130" cy="${y + 21}" r="11" class="fill-soc-950 stroke-soc-800 stroke-[1px] transition-all duration-300" id="box-card-circ-${idx}" />
+                        <text x="130" y="${y + 25}" text-anchor="middle" class="fill-slate-500 font-bold text-[10px] font-mono transition-all duration-300" id="box-card-num-${idx}">${idx + 1}</text>
+                        
+                        <!-- Stage Label Text -->
+                        <text x="156" y="${y + 25}" class="fill-slate-350 font-semibold text-[12px] transition-all duration-300" id="box-card-lbl-${idx}">${node.label}</text>
+                    </g>
+                `;
+            });
+
+            svg += `</svg>`;
+            canvas.innerHTML = svg;
+        }
+
+        // Inspector select highlights
+        function selectDiagramNode(idx, manualInput = false) {
+            if (manualInput) {
+                clearInterval(diagramAnimationLoop);
+                document.getElementById('diagram-status-indicator').textContent = "Diagnostic Mode: Paused";
+            }
+
+            const flow = diagramFlows[activeDiagramKey];
+            if (idx >= flow.nodes.length) return;
+
+            activeDiagramNodeIdx = idx;
+
+            // Paint visual changes in SVG nodes
+            flow.nodes.forEach((_, i) => {
+                const cardRect = document.getElementById(`box-card-rect-${i}`);
+                const cardLbl = document.getElementById(`box-card-lbl-${i}`);
+                const cardCirc = document.getElementById(`box-card-circ-${i}`);
+                const cardNum = document.getElementById(`box-card-num-${i}`);
+                const flowLine = document.getElementById(`conn-line-active-${i}`);
+
+                if (cardRect && cardLbl) {
+                    if (i === idx) {
+                        cardRect.className.baseVal = flow.activeFill;
+                        cardCirc.className.baseVal = flow.activeCircle;
+                        cardNum.className.baseVal = flow.nodeText;
+                        cardLbl.className.baseVal = "fill-white font-extrabold text-[12px]";
+                    } else {
+                        cardRect.className.baseVal = "fill-soc-900 stroke-soc-800 stroke-[1.5px]";
+                        cardCirc.className.baseVal = "fill-soc-950 stroke-soc-800 stroke-[1px]";
+                        cardNum.className.baseVal = "fill-slate-500 font-bold text-[10px] font-mono";
+                        cardLbl.className.baseVal = "fill-slate-350 font-semibold text-[12px]";
+                    }
+                }
+
+                if (flowLine) {
+                    if (i < idx) {
+                        flowLine.classList.remove('hidden');
+                        flowLine.classList.add('flow-line-active');
+                    } else {
+                        flowLine.classList.add('hidden');
+                        flowLine.classList.remove('flow-line-active');
+                    }
+                }
+            });
+
+            // Update parameters panel with verbatim notes info
+            const activeNode = flow.nodes[idx];
+            document.getElementById('inspector-port-title').innerHTML = `
+                <i class="fa-solid fa-circle-nodes ${flow.accent}"></i> ${activeNode.label}
+            `;
+            document.getElementById('inspector-port-desc').textContent = activeNode.desc;
+            document.getElementById('inspector-port-telemetry').textContent = activeNode.details;
+        }
+
+        function restartDiagramLoop() {
+            renderSelectedDiagram(activeDiagramKey);
+            document.getElementById('diagram-status-indicator').textContent = "Active Telemetry Simulation";
+        }
+
+        // PowerPoint (PPT) Presentation Carousel Controller
+        const presentationSlides = document.querySelectorAll('.slide-pane');
+        
+        function syncSlideToCurrentFile() {
+            for (let i = 0; i < presentationSlides.length; i++) {
+                if (parseInt(presentationSlides[i].getAttribute('data-file-idx')) === activeFileId) {
+                    activeSlideIdx = i;
+                    renderSlidesProgress();
+                    break;
+                }
+            }
+        }
+
+        function navigateSlide(direction) {
+            const nextIdx = activeSlideIdx + direction;
+            if (nextIdx >= 0 && nextIdx < presentationSlides.length) {
+                activeSlideIdx = nextIdx;
+                renderSlidesProgress();
+                
+                // Mirror sidebar exploration highlights
+                const mappedFileId = parseInt(presentationSlides[activeSlideIdx].getAttribute('data-file-idx'));
+                if (mappedFileId && mappedFileId !== activeFileId) {
+                    activeFileId = mappedFileId;
+                    selectFile(mappedFileId);
+                }
+            }
+        }
+
+        function jumpToSlideIndex(index) {
+            if (index >= 0 && index < presentationSlides.length) {
+                activeSlideIdx = index;
+                renderSlidesProgress();
+
+                const mappedFileId = parseInt(presentationSlides[activeSlideIdx].getAttribute('data-file-idx'));
+                if (mappedFileId && mappedFileId !== activeFileId) {
+                    activeFileId = mappedFileId;
+                    selectFile(mappedFileId);
+                }
+            }
+        }
+
+        function renderSlidesProgress() {
+            presentationSlides.forEach((slide, idx) => {
+                if (idx === activeSlideIdx) {
+                    slide.classList.add('active');
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+
+            // Set progress dot indices
+            const dotsContainer = document.getElementById('carousel-indicator-dots');
+            dotsContainer.innerHTML = '';
+            presentationSlides.forEach((_, idx) => {
+                const dot = document.createElement('button');
+                dot.className = `w-2 h-2 rounded-full transition-all duration-300 ${idx === activeSlideIdx ? 'bg-soc-accent w-4' : 'bg-soc-800 hover:bg-slate-600'}`;
+                dot.onclick = () => jumpToSlideIndex(idx);
+                dotsContainer.appendChild(dot);
+            });
+
+            document.getElementById('slide-prev-btn').disabled = activeSlideIdx === 0;
+            document.getElementById('slide-next-btn').disabled = activeSlideIdx === presentationSlides.length - 1;
+        }
+
+        // Universal Keyboard Inputs Router
+        document.addEventListener('keydown', (e) => {
+            if (activeViewMode === 'slides') {
+                if (e.key === 'ArrowRight' || e.key === 'Space') {
+                    navigateSlide(1);
+                } else if (e.key === 'ArrowLeft') {
+                    navigateSlide(-1);
+                }
+            }
+        });
+
+        // Load First Document Initial state
+        selectFile(1);
+    </script>
+</body>
+</html>
